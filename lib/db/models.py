@@ -11,7 +11,7 @@ class Trip( Base ):
     __tablename__ = 'trips'
 
     id = Column(Integer, primary_key=True)
-    destinations = Column(String)
+    destination = Column(String)
     start_date = Column(Date)
     end_date = Column(Date)
 
