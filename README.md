@@ -155,11 +155,50 @@ travel-planner-cli/
     ├── helpers.py            # Utility functions
     └── debug.py              # Debugging utilities
 
-## 🔧 Development
+### 🔧 Development
 
-### Creating Migrations
+### 📦 Creating Migrations
 
-1. **After modifying models:**
-   ```bash
-   alembic revision --autogenerate -m "description of changes"
-   ```
+After modifying your SQLAlchemy models, generate a new migration using Alembic:
+
+```bash
+alembic revision --autogenerate -m "description of changes"
+```
+
+### Applying migrations
+```bash
+alembic upgrade head
+```
+
+### Testing
+
+Run the debug script to inspect database contents:
+```bash
+python -m lib.debug
+```
+
+### Reseting database
+
+Resetting Database
+```bash
+rm lib/db/travel.db
+alembic upgrade head
+python -m lib.db.seed
+```
+
+## ⚠ Troubleshooting
+
+### 🐞 Common Issues
+
+| Error                   | Solution                                       |
+|------------------------|------------------------------------------------|
+| `no such table`        | Run `alembic upgrade head`                     |
+| `database is locked`   | Close other connections or restart your app    |
+| Migration conflicts    | Delete old migrations and regenerate           |
+| `ModuleNotFoundError`  | Activate the virtual environment (`pipenv shell`) |
+
+
+## License
+MIT License. See LICENSE for full text.
+
+Happy Travel Planning! ✈️🌎🗺️
