@@ -1,13 +1,11 @@
+# models.py
 from sqlalchemy import create_engine, Column, String, Integer, Date, Time, ForeignKey
 from sqlalchemy.orm import relationship, declarative_base, sessionmaker
 
-engine = create_engine('sqlite:///travel_itinerary.db')
 Base = declarative_base()
-Session = sessionmaker(bind=engine)
-session = Session()
 
 # Table -1
-class Trip( Base ):
+class Trip(Base):
     __tablename__ = 'trips'
 
     id = Column(Integer, primary_key=True)
@@ -19,10 +17,10 @@ class Trip( Base ):
     activities = relationship('Activity', back_populates='trip', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<Trip(id={self.id}, destination='{self.destinations}', dates='{self.start_date} to {self.end_date}')>"
+        return f"<Trip(id={self.id}, destination='{self.destination}', dates='{self.start_date} to {self.end_date}')>"
     
 # Table -2
-class Booking( Base ):
+class Booking(Base):
     __tablename__ = 'bookings'
 
     id = Column(Integer, primary_key=True)
@@ -36,10 +34,10 @@ class Booking( Base ):
         return f"<Booking(id={self.id}, flight='{self.flight}', hotel='{self.hotel}')>"
 
 # Table -3
-class Activity( Base ):
+class Activity(Base):
     __tablename__ = 'activities'
 
-    id  = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String)
     time = Column(Time)
     date = Column(Date)
@@ -49,3 +47,7 @@ class Activity( Base ):
 
     def __repr__(self):
         return f"<Activity(id={self.id}, name='{self.name}', time='{self.time}')>"
+
+engine = create_engine('sqlite:///travel_itinerary.db')
+Session = sessionmaker(bind=engine)
+session = Session()
