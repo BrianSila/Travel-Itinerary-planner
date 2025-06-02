@@ -84,7 +84,7 @@ A feature-rich command-line application for managing complete travel itineraries
 | `add-booking` | Add booking info | `python -m lib.cli add-booking 1` |
 
 
-### 🗄 Database Schema (Verified Working)
+### 🗄 Database Schema 
 
 ### Entity Relationship Diagram
 ```mermaid
@@ -110,6 +110,7 @@ erDiagram
         date date
         integer trip_id FK
     }
+   ```
 
 ### Example workflow
 
