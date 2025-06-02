@@ -73,34 +73,43 @@ A feature-rich command-line application for managing complete travel itineraries
 
 ## 🚀 Usage
 
-### Database schema
-classDiagram
-    class Trip {
-        +id: Integer
-        +destination: String
-        +start_date: Date
-        +end_date: Date
-        +bookings: Booking[]
-        +activities: Activity[]
-    }
+### Basic Commands
 
-    class Booking {
-        +id: Integer
-        +flight: String
-        +hotel: String
-        +trip_id: Integer
-    }
+| Command | Description | Example |
+|---------|-------------|---------|
+| `list-trips` | Show all trips | `python -m lib.cli list-trips` |
+| `add-trip` | Create new trip | `python -m lib.cli add-trip` |
+| `trip-details` | View trip details | `python -m lib.cli trip-details 1` |
+| `add-activity` | Schedule activity | `python -m lib.cli add-activity 1` |
+| `add-booking` | Add booking info | `python -m lib.cli add-booking 1` |
 
-    class Activity {
-        +id: Integer
-        +name: String
-        +time: Time
-        +date: Date
-        +trip_id: Integer
-    }
 
-    Trip "1" -- "0..*" Booking
-    Trip "1" -- "0..*" Activity
+### 🗄 Database Schema (Verified Working)
+
+### Entity Relationship Diagram
+```mermaid
+erDiagram
+    TRIP ||--o{ BOOKING : "has"
+    TRIP ||--o{ ACTIVITY : "has"
+    TRIP {
+        integer id PK
+        string destination
+        date start_date
+        date end_date
+    }
+    BOOKING {
+        integer id PK
+        string flight
+        string hotel
+        integer trip_id FK
+    }
+    ACTIVITY {
+        integer id PK
+        string name
+        time time
+        date date
+        integer trip_id FK
+    }
 
 ### Example workflow
 
