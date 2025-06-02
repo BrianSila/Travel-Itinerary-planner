@@ -84,7 +84,7 @@ A feature-rich command-line application for managing complete travel itineraries
 | `add-booking` | Add booking info | `python -m lib.cli add-booking 1` |
 
 
-### 🗄 Database Schema (Verified Working)
+### 🗄 Database Schema 
 
 ### Entity Relationship Diagram
 ```mermaid
@@ -110,6 +110,7 @@ erDiagram
         date date
         integer trip_id FK
     }
+   ```
 
 ### Example workflow
 
@@ -161,44 +162,3 @@ travel-planner-cli/
 
 After modifying your SQLAlchemy models, generate a new migration using Alembic:
 
-```bash
-alembic revision --autogenerate -m "description of changes"
-```
-
-### Applying migrations
-```bash
-alembic upgrade head
-```
-
-### Testing
-
-Run the debug script to inspect database contents:
-```bash
-python -m lib.debug
-```
-
-### Reseting database
-
-Resetting Database
-```bash
-rm lib/db/travel.db
-alembic upgrade head
-python -m lib.db.seed
-```
-
-## ⚠ Troubleshooting
-
-### 🐞 Common Issues
-
-| Error                   | Solution                                       |
-|------------------------|------------------------------------------------|
-| `no such table`        | Run `alembic upgrade head`                     |
-| `database is locked`   | Close other connections or restart your app    |
-| Migration conflicts    | Delete old migrations and regenerate           |
-| `ModuleNotFoundError`  | Activate the virtual environment (`pipenv shell`) |
-
-
-## License
-MIT License. See LICENSE for full text.
-
-Happy Travel Planning! ✈️🌎🗺️
