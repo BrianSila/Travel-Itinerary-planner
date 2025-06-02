@@ -55,7 +55,102 @@ A feature-rich command-line application for managing complete travel itineraries
    ```
 
 2. **Setup the environment**
-    ```
+    ```bash
     pipenv install
     pipenv shell
     ```
+
+3. **Install additional requirements**
+   ```bash
+   pip installfaker
+   pip install click
+   ```
+
+4. **Initialize the database**
+   ```bash
+   alembic upgrade head
+   ```
+
+## 🚀 Usage
+
+### Database schema
+classDiagram
+    class Trip {
+        +id: Integer
+        +destination: String
+        +start_date: Date
+        +end_date: Date
+        +bookings: Booking[]
+        +activities: Activity[]
+    }
+
+    class Booking {
+        +id: Integer
+        +flight: String
+        +hotel: String
+        +trip_id: Integer
+    }
+
+    class Activity {
+        +id: Integer
+        +name: String
+        +time: Time
+        +date: Date
+        +trip_id: Integer
+    }
+
+    Trip "1" -- "0..*" Booking
+    Trip "1" -- "0..*" Activity
+
+### Example workflow
+
+1. **Create a new trip:**
+   ```bash
+   python -m lib.cli add-trip
+   ```
+Follow prompts to enter destination and dates
+
+2. **Add bookings:**
+   ```bash
+   python -m lib.cli add-booking 1
+   ```
+Enter flight and hotel details
+
+3. **Plan activities:**
+   ```bash
+   python -m lib.cli add-activity 1
+   ```
+Specify activity name, date, and time
+
+4. **View your itinerary:**
+   ```bash
+   python -m lib.cli trip-details 1
+   ```
+
+## 📂 Project Structure
+
+travel-planner-cli/
+├── .gitignore
+├── Pipfile
+├── Pipfile.lock
+├── alembic.ini
+├── README.md
+└── lib/
+    ├── cli.py                # CLI command definitions
+    ├── db/
+    │   ├── __init__.py
+    │   ├── config.py         # Database configuration
+    │   ├── models.py         # SQLAlchemy ORM models
+    │   ├── seed.py           # Database seeding
+    │   └── migrations/       # Alembic migration scripts
+    ├── helpers.py            # Utility functions
+    └── debug.py              # Debugging utilities
+
+## 🔧 Development
+
+### Creating Migrations
+
+1. **After modifying models:**
+   ```bash
+   alembic revision --autogenerate -m "description of changes"
+   ```
