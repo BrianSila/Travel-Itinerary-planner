@@ -139,6 +139,7 @@ Specify activity name, date, and time
 
 ## 📂 Project Structure
 
+```bash
 travel-planner-cli/
 ├── .gitignore
 ├── Pipfile
@@ -155,6 +156,7 @@ travel-planner-cli/
     │   └── migrations/       # Alembic migration scripts
     ├── helpers.py            # Utility functions
     └── debug.py              # Debugging utilities
+```
 
 ### 🔧 Development
 
