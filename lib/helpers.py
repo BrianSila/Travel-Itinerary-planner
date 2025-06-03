@@ -11,7 +11,6 @@ def get_activities_for_trip(trip_id):
     Returns a list of activities sorted by date and time
     """
     activities = session.query(Activity).filter_by(trip_id=trip_id).all()
-    # Using tuple for sorting keys (date, time)
     return sorted(activities, key=lambda x: (x.date, x.time))
 
 def create_daily_schedule(activities):
