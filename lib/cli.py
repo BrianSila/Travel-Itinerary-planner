@@ -1,33 +1,75 @@
-from db.models import Trip, Booking, Activity, session, Base, engine
+import time
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import select, delete
+from db.models import Trip, Booking, Activity, session, Base, engine
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.prompt import Prompt, Confirm
+from rich.progress import track
+from rich.style import Style
+from rich.markdown import Markdown
+
+# Initialize Rich console
+console = Console()
+
+# Define styles
+error_style = Style(color="red", bold=True)
+success_style = Style(color="green", bold=True)
+warning_style = Style(color="yellow")
+highlight_style = Style(bold=True, underline=True)
 
 def initialize_database():
     """Create database tables if they don't exist"""
-    Base.metadata.create_all(engine)
-    print("Database initialized successfully!")
+    with console.status("[bold green]Initializing database...[/bold green]"):
+        Base.metadata.create_all(engine)
+        time.sleep(1)  # Simulate work for progress visualization
+    console.print("[green]✓ Database initialized successfully![/green]")
 
 def list_trips():
+    """Display all trips in a rich table"""
     trips = session.scalars(select(Trip)).all()
+    
     if not trips:
-        print("No trips found.")
+        console.print("[bold red]No trips found.[/bold red]")
         return
-    print("\n--- Your Trips ---")
+    
+    table = Table(title="✈️ Your Trips", show_header=True, header_style="bold magenta")
+    table.add_column("ID", style="cyan", justify="right")
+    table.add_column("Destination", style="green")
+    table.add_column("Start Date", style="yellow")
+    table.add_column("End Date", style="yellow")
+    table.add_column("Duration", justify="right")
+    
     for trip in trips:
-        print(f"{trip.id}: {trip.destination} ({trip.start_date} to {trip.end_date})")
+        duration = (trip.end_date - trip.start_date).days + 1
+        table.add_row(
+            str(trip.id),
+            f"[bold]{trip.destination}[/bold]",
+            str(trip.start_date),
+            str(trip.end_date),
+            f"{duration} days"
+        )
+    
+    console.print(table)
 
 def add_trip():
-    print("\n--- Add New Trip ---")
-    destination = input("Destination: ").strip()
+    """Add a new trip with rich prompts"""
+    console.print(Panel("➕ Add New Trip", style="bold blue"))
+    
+    destination = Prompt.ask("🏝️ [bold]Destination[/bold]")
+    
     while True:
-        start_date = input("Start date (YYYY-MM-DD): ").strip()
-        end_date = input("End date (YYYY-MM-DD): ").strip()
+        start_date = Prompt.ask("📅 [bold]Start date[/bold] (YYYY-MM-DD)")
+        end_date = Prompt.ask("📅 [bold]End date[/bold] (YYYY-MM-DD)")
+        
         try:
             start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
             end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
             
             if end_date_obj < start_date_obj:
-                print("Error: End date must be after start date.")
+                console.print("[red]Error: End date must be after start date[/red]")
                 continue
                 
             trip = Trip(
@@ -37,235 +79,281 @@ def add_trip():
             )
             session.add(trip)
             session.commit()
-            print(f"\n✓ Added trip to {destination} (ID: {trip.id})")
+            console.print(f"[green]✓ Added trip to [bold]{destination}[/bold] (ID: {trip.id})[/green]")
             break
         except ValueError:
-            print("Invalid date format. Please use YYYY-MM-DD.")
+            console.print("[red]Invalid date format. Please use YYYY-MM-DD.[/red]")
 
 def update_trip():
-    print("\n--- Update Trip ---")
+    """Update trip details with rich interface"""
+    console.print(Panel("🔄 Update Trip", style="bold blue"))
     list_trips()
+    
     try:
-        trip_id = int(input("\nEnter trip ID to update: "))
-        trip = session.get(Trip, trip_id)
+        trip_id = Prompt.ask("\nEnter trip ID to update", default="0")
+        trip = session.get(Trip, int(trip_id))
+        
         if not trip:
-            print(f"\n✗ No trip found with ID {trip_id}")
+            console.print("[red]✗ No trip found with that ID[/red]")
             return
 
-        print("\nLeave blank to keep current value:")
-        new_destination = input(f"Destination [{trip.destination}]: ").strip()
-        new_start_date = input(f"Start date [{trip.start_date}] (YYYY-MM-DD): ").strip()
-        new_end_date = input(f"End date [{trip.end_date}] (YYYY-MM-DD): ").strip()
-
-        if new_destination:
-            Trip.destination = new_destination
+        console.print("\n[bold]Leave blank to keep current value:[/bold]")
+        new_destination = Prompt.ask(
+            f"Destination [[{trip.destination}]]",
+            default=trip.destination
+        )
         
-        date_changed = False
-        if new_start_date or new_end_date:
-            try:
-                start_date = trip.start_date
-                end_date = trip.end_date
-                
-                if new_start_date:
-                    start_date = datetime.strptime(new_start_date, "%Y-%m-%d").date()
-                if new_end_date:
-                    end_date = datetime.strptime(new_end_date, "%Y-%m-%d").date()
-                
-                if end_date < start_date:
-                    print("Error: End date must be after start date.")
-                    return
-                
-                trip.start_date = start_date
-                trip.end_date = end_date
-                date_changed = True
-            except ValueError:
-                print("Invalid date format. Please use YYYY-MM-DD.")
-                return
+        new_start_date = Prompt.ask(
+            f"Start date [[{trip.start_date}]] (YYYY-MM-DD)",
+            default=str(trip.start_date)
+        )
+        
+        new_end_date = Prompt.ask(
+            f"End date [[{trip.end_date}]] (YYYY-MM-DD)",
+            default=str(trip.end_date)
+        )
 
-        session.commit()
-        print("\n✓ Trip updated successfully!")
+        # Update fields if changed
+        if new_destination != trip.destination:
+            trip.destination = new_destination
+        
+        try:
+            start_date = datetime.strptime(new_start_date, "%Y-%m-%d").date()
+            end_date = datetime.strptime(new_end_date, "%Y-%m-%d").date()
+            
+            if end_date < start_date:
+                console.print("[red]Error: End date must be after start date[/red]")
+                return
+            
+            trip.start_date = start_date
+            trip.end_date = end_date
+            
+            session.commit()
+            console.print("[green]✓ Trip updated successfully![/green]")
+        except ValueError:
+            console.print("[red]Invalid date format. Changes not saved.[/red]")
+            
     except ValueError:
-        print("Invalid input. Please enter a number.")
+        console.print("[red]Invalid input. Please enter a number.[/red]")
 
 def delete_trip():
-    print("\n--- Delete Trip ---")
+    """Delete a trip with confirmation"""
+    console.print(Panel("❌ Delete Trip", style="bold red"))
     list_trips()
+    
     try:
-        trip_id = int(input("\nEnter trip ID to delete: "))
-        trip = session.get(Trip, trip_id)
-        if not trip:
-            print(f"\n✗ No trip found with ID {trip_id}")
-            return
-
-        # Show confirmation with trip details
-        print(f"\nYou are about to delete this trip:")
-        print(f"Destination: {trip.destination}")
-        print(f"Dates: {trip.start_date} to {trip.end_date}")
+        trip_id = Prompt.ask("\nEnter trip ID to delete", default="0")
+        trip = session.get(Trip, int(trip_id))
         
-        confirm = input("\nAre you sure? This will also delete all associated bookings and activities. (y/n): ").strip().lower()
-        if confirm == 'y':
-            # Delete associated bookings and activities first
-            session.execute(delete(Booking).where(Booking.trip_id == trip_id))
-            session.execute(delete(Activity).where(Activity.trip_id == trip_id))
-            session.delete(trip)
-            session.commit()
-            print("\n✓ Trip deleted successfully!")
+        if not trip:
+            console.print("[red]✗ No trip found with that ID[/red]")
+            return
+        
+        console.print(Panel.fit(
+            f"[bold]You are about to delete:[/bold]\n"
+            f"Destination: [red]{trip.destination}[/red]\n"
+            f"Dates: {trip.start_date} to {trip.end_date}\n"
+            f"This will also delete {len(trip.activities)} activities and {len(trip.bookings)} bookings",
+            title="⚠️ Warning",
+            border_style="red"
+        ))
+        
+        if Confirm.ask("[bold red]Are you sure?[/bold red]", default=False):
+            with console.status("[red]Deleting trip...[/red]"):
+                session.execute(delete(Booking).where(Booking.trip_id == trip.id))
+                session.execute(delete(Activity).where(Activity.trip_id == trip.id))
+                session.delete(trip)
+                session.commit()
+                time.sleep(1)
+            console.print("[green]✓ Trip deleted successfully![/green]")
         else:
-            print("\nDeletion cancelled.")
+            console.print("[yellow]Deletion cancelled[/yellow]")
     except ValueError:
-        print("Invalid input. Please enter a number.")
+        console.print("[red]Invalid input. Please enter a number.[/red]")
 
 def trip_details():
-    print("\n--- Trip Details ---")
+    """Show detailed trip information"""
+    console.print(Panel("🔍 Trip Details", style="bold blue"))
     list_trips()
+    
     try:
-        trip_id = int(input("\nEnter trip ID to view details: "))
-        trip = session.get(Trip, trip_id)
+        trip_id = Prompt.ask("\nEnter trip ID to view details", default="0")
+        trip = session.get(Trip, int(trip_id))
+        
         if not trip:
-            print(f"\n✗ No trip found with ID {trip_id}")
+            console.print("[red]✗ No trip found with that ID[/red]")
             return
         
-        print(f"\n=== Trip to {trip.destination} ===")
-        print(f"Dates: {trip.start_date} to {trip.end_date}")
-        print(f"Duration: {(trip.end_date - trip.start_date).days + 1} days\n")
+        # Main trip panel
+        console.print(Panel.fit(
+            f"[bold green]{trip.destination}[/bold green]\n"
+            f"📅 [bold]Dates:[/bold] {trip.start_date} to {trip.end_date}\n"
+            f"⏱️ [bold]Duration:[/bold] {(trip.end_date - trip.start_date).days + 1} days",
+            title="Trip Overview",
+            border_style="blue"
+        ))
         
-        # Display bookings
-        bookings = session.scalars(select(Booking).where(Booking.trip_id == trip_id)).all()
+        # Bookings section
+        bookings = session.scalars(select(Booking).where(Booking.trip_id == trip.id)).all()
         if bookings:
-            print("--- Bookings ---")
+            bookings_table = Table(title="📚 Bookings", show_lines=True)
+            bookings_table.add_column("Type", style="cyan")
+            bookings_table.add_column("Details", style="white")
             for booking in bookings:
-                print(f"✈ Flight: {booking.flight or 'Not specified'}")
-                print(f"🏨 Hotel: {booking.hotel or 'Not specified'}\n")
+                if booking.flight:
+                    bookings_table.add_row("✈️ Flight", booking.flight)
+                if booking.hotel:
+                    bookings_table.add_row("🏨 Hotel", booking.hotel)
+            console.print(bookings_table)
         else:
-            print("No bookings added yet.\n")
+            console.print("[italic]No bookings added yet.[/italic]")
         
-        # Display activities
+        # Activities section
         activities = session.scalars(
             select(Activity)
-            .where(Activity.trip_id == trip_id)
+            .where(Activity.trip_id == trip.id)
             .order_by(Activity.date, Activity.time)
         ).all()
         
         if activities:
-            print("--- Itinerary ---")
-            daily_schedule = {}
+            console.print("\n[bold underline]📅 Itinerary:[/bold underline]")
+            current_date = None
             for activity in activities:
-                date_str = activity.date.strftime("%Y-%m-%d")
-                if date_str not in daily_schedule:
-                    daily_schedule[date_str] = []
-                daily_schedule[date_str].append(activity)
-            
-            for date, activities_list in daily_schedule.items():
-                print(f"\n📅 {date}:")
-                for activity in sorted(activities_list, key=lambda x: x.time):
-                    print(f"  ⏰ {activity.time.strftime('%H:%M')} - {activity.name}")
+                if activity.date != current_date:
+                    console.print(f"\n[bold yellow]{activity.date}[/bold yellow]")
+                    current_date = activity.date
+                console.print(
+                    f"  ⏰ [cyan]{activity.time.strftime('%H:%M') if activity.time else 'All day':<6}[/cyan] "
+                    f"- [bold]{activity.name}[/bold]"
+                )
         else:
-            print("No activities planned yet.")
+            console.print("[italic]No activities planned yet.[/italic]")
             
     except ValueError:
-        print("Invalid input. Please enter a number.")
+        console.print("[red]Invalid input. Please enter a number.[/red]")
 
 def add_activity():
-    print("\n--- Add Activity ---")
+    """Add an activity to a trip"""
+    console.print(Panel("➕ Add Activity", style="bold blue"))
     list_trips()
+    
     try:
-        trip_id = int(input("\nEnter trip ID to add activity: "))
-        trip = session.get(Trip, trip_id)
+        trip_id = Prompt.ask("\nEnter trip ID to add activity", default="0")
+        trip = session.get(Trip, int(trip_id))
+        
         if not trip:
-            print(f"\n✗ No trip found with ID {trip_id}")
+            console.print("[red]✗ No trip found with that ID[/red]")
             return
             
-        name = input("Activity name: ").strip()
+        name = Prompt.ask("🎯 [bold]Activity name[/bold]")
+        
         while True:
-            date_str = input("Date (YYYY-MM-DD): ").strip()
-            time_str = input("Time (HH:MM): ").strip()
+            date_str = Prompt.ask("📅 [bold]Date[/bold] (YYYY-MM-DD)")
+            time_str = Prompt.ask("⏰ [bold]Time[/bold] (HH:MM, leave blank if all day)", default="")
+            
             try:
                 date = datetime.strptime(date_str, "%Y-%m-%d").date()
-                time = datetime.strptime(time_str, "%H:%M").time()
                 
                 if date < trip.start_date or date > trip.end_date:
-                    print(f"\n✗ Date must be between {trip.start_date} and {trip.end_date}")
+                    console.print(f"[red]✗ Date must be between {trip.start_date} and {trip.end_date}[/red]")
                     continue
                     
+                time_obj = datetime.strptime(time_str, "%H:%M").time() if time_str else None
+                
                 activity = Activity(
                     name=name, 
                     date=date, 
-                    time=time, 
-                    trip_id=trip_id
+                    time=time_obj, 
+                    trip_id=trip.id
                 )
                 session.add(activity)
                 session.commit()
-                print(f"\n✓ Added activity '{name}' to trip ID {trip_id}")
+                console.print(f"[green]✓ Added activity '[bold]{name}[/bold]' to trip ID {trip.id}[/green]")
                 break
             except ValueError:
-                print("\n✗ Invalid format. Use YYYY-MM-DD for date and HH:MM for time.")
+                console.print("[red]✗ Invalid format. Use YYYY-MM-DD for date and HH:MM for time.[/red]")
     except ValueError:
-        print("\n✗ Invalid input. Please enter a number.")
+        console.print("[red]Invalid input. Please enter a number.[/red]")
 
 def add_booking():
-    print("\n--- Add Booking ---")
+    """Add booking information"""
+    console.print(Panel("➕ Add Booking", style="bold blue"))
     list_trips()
+    
     try:
-        trip_id = int(input("\nEnter trip ID to add booking: "))
-        trip = session.get(Trip, trip_id)
+        trip_id = Prompt.ask("\nEnter trip ID to add booking", default="0")
+        trip = session.get(Trip, int(trip_id))
+        
         if not trip:
-            print(f"\n✗ No trip found with ID {trip_id}")
+            console.print("[red]✗ No trip found with that ID[/red]")
             return
             
-        flight = input("Flight details (leave blank if none): ").strip()
-        hotel = input("Hotel details (leave blank if none): ").strip()
+        flight = Prompt.ask("✈️ [bold]Flight details[/bold] (leave blank if none)", default="")
+        hotel = Prompt.ask("🏨 [bold]Hotel details[/bold] (leave blank if none)", default="")
         
         if not flight and not hotel:
-            print("No booking details provided. Nothing was added.")
+            console.print("[yellow]No booking details provided. Nothing was added.[/yellow]")
             return
             
         booking = Booking(
             flight=flight if flight else None,
             hotel=hotel if hotel else None,
-            trip_id=trip_id
+            trip_id=trip.id
         )
         session.add(booking)
         session.commit()
-        print("\n✓ Booking added successfully!")
+        console.print("[green]✓ Booking added successfully![/green]")
     except ValueError:
-        print("Invalid input. Please enter a number.")
+        console.print("[red]Invalid input. Please enter a number.[/red]")
 
 def main_menu():
+    """Main menu with rich interface"""
     initialize_database()
     
+    menu_options = {
+        "1": ("List Trips", list_trips),
+        "2": ("Add Trip", add_trip),
+        "3": ("Update Trip", update_trip),
+        "4": ("Delete Trip", delete_trip),
+        "5": ("Trip Details", trip_details),
+        "6": ("Add Activity", add_activity),
+        "7": ("Add Booking", add_booking),
+        "0": ("Exit", None)
+    }
+    
     while True:
-        print("\n=== 🌍 Travel Itinerary Planner ===")
-        print("1. List all trips")
-        print("2. Add a new trip")
-        print("3. Update a trip")
-        print("4. Delete a trip")
-        print("5. View trip details")
-        print("6. Add an activity to a trip")
-        print("7. Add booking information")
-        print("0. Exit")
-
-        choice = input("\nEnter your choice (0-7): ").strip()
+        console.print(Panel.fit(
+            "[bold blue]🌍 Travel Itinerary Planner[/bold blue]",
+            subtitle="[italic]Your personal travel organizer[/italic]",
+            border_style="blue"
+        ))
         
-        if choice == "1":
-            list_trips()
-        elif choice == "2":
-            add_trip()
-        elif choice == "3":
-            update_trip()
-        elif choice == "4":
-            delete_trip()
-        elif choice == "5":
-            trip_details()
-        elif choice == "6":
-            add_activity()
-        elif choice == "7":
-            add_booking()
-        elif choice == "0":
-            print("\nThank you for using Travel Itinerary Planner. Goodbye! ✈")
+        for key, (text, _) in menu_options.items():
+            console.print(f"[cyan][{key}][/cyan] {text}")
+        
+        choice = Prompt.ask(
+            "\n[bold]Your choice[/bold]", 
+            choices=list(menu_options.keys()),
+            show_choices=False
+        )
+        
+        if choice == "0":
+            console.print(Panel.fit(
+                "[bold green]Thank you for using Travel Itinerary Planner![/bold green]\n"
+                "Safe travels! ✈️",
+                border_style="green"
+            ))
             session.close()
             break
-        else:
-            print("Invalid choice. Please enter a number from 0 to 7.")
+            
+        menu_options[choice][1]()
 
 if __name__ == '__main__':
-    main_menu()
+    try:
+        main_menu()
+    except KeyboardInterrupt:
+        console.print("\n[red]Program interrupted. Exiting gracefully...[/red]")
+        session.close()
+    except Exception as e:
+        console.print(f"[red]An error occurred: {str(e)}[/red]")
+        session.close()
