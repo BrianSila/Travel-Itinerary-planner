@@ -1,14 +1,20 @@
-from models import Trip, Booking, Activity, session
+from models import Trip, Booking, Activity, session, Base, engine
 from faker import Faker
 from datetime import datetime, timedelta
 import random
 
 fake = Faker()
 
+def create_tables():
+    """Create all database tables before seeding"""
+    Base.metadata.create_all(engine)
+
 def clear_data():
-    session.query(Trip).delete()
-    session.query(Booking).delete()
+    """Clear existing data from all tables"""
+    # Note the order matters due to foreign key constraints
     session.query(Activity).delete()
+    session.query(Booking).delete()
+    session.query(Trip).delete()
     session.commit()
 
 def seed_data():
@@ -28,10 +34,13 @@ def seed_data():
     session.commit()
     
     # Create bookings for each trip
+    airlines = ["Delta", "United", "American", "Southwest", "JetBlue", "Spirit"]
+    hotel_chains = ["Marriott", "Hilton", "Hyatt", "InterContinental", "Accor", "Wyndham"]
+    
     for trip in trips:
         booking = Booking(
-            flight=fake.airline(),
-            hotel=fake.company(),
+            flight=f"{random.choice(airlines)} {random.randint(100, 999)}",  # Generate flight info
+            hotel=f"{random.choice(hotel_chains)} {fake.city()}",  # Generate hotel info
             trip_id=trip.id
         )
         session.add(booking)
@@ -39,7 +48,9 @@ def seed_data():
     # Create activities for each trip
     activities = [
         "City Tour", "Museum Visit", "Beach Day", 
-        "Hiking", "Food Tasting", "Shopping"
+        "Hiking", "Food Tasting", "Shopping",
+        "Concert", "Theater Show", "Wine Tasting",
+        "Boat Cruise", "Cooking Class", "Local Market"
     ]
     
     for trip in trips:
@@ -59,6 +70,7 @@ def seed_data():
     session.commit()
 
 if __name__ == '__main__':
+    create_tables()
     clear_data()
     seed_data()
     print("Database seeded successfully!")
