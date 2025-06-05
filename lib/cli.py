@@ -114,8 +114,8 @@ def update_trip():
         )
 
         # Update fields if changed
-        if new_destination != trip.destination:
-            trip.destination = new_destination
+        if getattr(trip, "destination") != new_destination:
+            setattr(trip, "destination", new_destination)
         
         try:
             start_date = datetime.strptime(new_start_date, "%Y-%m-%d").date()
@@ -125,8 +125,8 @@ def update_trip():
                 console.print("[red]Error: End date must be after start date[/red]")
                 return
             
-            trip.start_date = start_date
-            trip.end_date = end_date
+            setattr(trip, "start_date", start_date)
+            setattr(trip, "end_date", end_date)
             
             session.commit()
             console.print("[green]✓ Trip updated successfully![/green]")
@@ -200,10 +200,10 @@ def trip_details():
             bookings_table.add_column("Type", style="cyan")
             bookings_table.add_column("Details", style="white")
             for booking in bookings:
-                if booking.flight:
-                    bookings_table.add_row("✈️ Flight", booking.flight)
-                if booking.hotel:
-                    bookings_table.add_row("🏨 Hotel", booking.hotel)
+                if getattr(booking, "flight", None) is not None and getattr(booking, "flight") != "":
+                    bookings_table.add_row("✈️ Flight", str(getattr(booking, "flight")))
+                if getattr(booking, "hotel", None) is not None and getattr(booking, "hotel") != "":
+                    bookings_table.add_row("🏨 Hotel", str(getattr(booking, "hotel")))
             console.print(bookings_table)
         else:
             console.print("[italic]No bookings added yet.[/italic]")
@@ -219,12 +219,15 @@ def trip_details():
             console.print("\n[bold underline]📅 Itinerary:[/bold underline]")
             current_date = None
             for activity in activities:
-                if activity.date != current_date:
-                    console.print(f"\n[bold yellow]{activity.date}[/bold yellow]")
-                    current_date = activity.date
+                activity_date = getattr(activity, "date", None)
+                if activity_date != current_date:
+                    console.print(f"\n[bold yellow]{activity_date}[/bold yellow]")
+                    current_date = activity_date
+                activity_time = getattr(activity, "time", None)
+                activity_name = getattr(activity, "name", "")
                 console.print(
-                    f"  ⏰ [cyan]{activity.time.strftime('%H:%M') if activity.time else 'All day':<6}[/cyan] "
-                    f"- [bold]{activity.name}[/bold]"
+                    f"  ⏰ [cyan]{activity_time.strftime('%H:%M') if activity_time is not None else 'All day':<6}[/cyan] "
+                    f"- [bold]{activity_name}[/bold]"
                 )
         else:
             console.print("[italic]No activities planned yet.[/italic]")
@@ -250,13 +253,15 @@ def add_activity():
         while True:
             date_str = Prompt.ask("📅 [bold]Date[/bold] (YYYY-MM-DD)")
             time_str = Prompt.ask("⏰ [bold]Time[/bold] (HH:MM, leave blank if all day)", default="")
-            
-            try:
-                date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            date = datetime.strptime(date_str, "%Y-%m-%d").date()
                 
-                if date < trip.start_date or date > trip.end_date:
-                    console.print(f"[red]✗ Date must be between {trip.start_date} and {trip.end_date}[/red]")
-                    continue
+            trip_start = getattr(trip, "start_date")
+            trip_end = getattr(trip, "end_date")
+            if date < trip_start or date > trip_end:
+                console.print(f"[red]✗ Date must be between {trip_start} and {trip_end}[/red]")
+                continue
+                
+                time_obj = datetime.strptime(time_str, "%H:%M").time() if time_str else None
                     
                 time_obj = datetime.strptime(time_str, "%H:%M").time() if time_str else None
                 
@@ -270,10 +275,8 @@ def add_activity():
                 session.commit()
                 console.print(f"[green]✓ Added activity '[bold]{name}[/bold]' to trip ID {trip.id}[/green]")
                 break
-            except ValueError:
-                console.print("[red]✗ Invalid format. Use YYYY-MM-DD for date and HH:MM for time.[/red]")
     except ValueError:
-        console.print("[red]Invalid input. Please enter a number.[/red]")
+            console.print("[red]✗ Invalid format. Use YYYY-MM-DD for date and HH:MM for time.[/red]")
 
 def add_booking():
     """Add booking information"""
